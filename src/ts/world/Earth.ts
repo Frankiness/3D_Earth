@@ -1,7 +1,7 @@
 import {
   BufferAttribute, BufferGeometry, Color, DoubleSide, Group, Material, Mesh, MeshBasicMaterial, NormalBlending,
-  Object3D,
-  Points, PointsMaterial, ShaderMaterial,
+  Object3D, Matrix4, Quaternion, Euler, Line, LineBasicMaterial,
+  Points, PointsMaterial, Ray, ShaderMaterial, CubicBezierCurve3,
   SphereBufferGeometry, Sprite, SpriteMaterial, Texture, TextureLoader, Vector3
 } from "three";
 
@@ -87,6 +87,10 @@ export default class earth {
   public n: number;
   public isRotation: boolean;
   public flyLineArcGroup: Group;
+  public loopTime: number
+  public model: any
+  public curveCollection: CubicBezierCurve3[]
+  public spritesCollection: Sprite[]
 
   constructor(options: options) {
 
@@ -143,13 +147,17 @@ export default class earth {
       },
     };
 
+    this.loopTime = 10 * 1000
+    this.curveCollection = []
+    this.spritesCollection = []
+
   }
 
   async init(): Promise<void> {
     return new Promise(async (resolve) => {
 
       this.createEarth(); // 创建地球
-      this.createStars(); // 添加星星
+      // this.createStars(); // 添加星星
 
       // this.createEarthGlow() // 创建地球辉光
       // this.createEarthAperture() // 创建地球的大气层
@@ -203,7 +211,7 @@ export default class earth {
     this.earthGroup.add(this.earth);
 
   }
-  
+
 
   createStars() {
     const vertices = []
@@ -500,8 +508,84 @@ export default class earth {
       l3.add(ball03);
     }
   }
+  /**
+   * 加载飞机的精灵图
+   */
+  createPlaneSprite(): Sprite {
+    const map = new TextureLoader().load('/images/earth/aircraft.png')
+    const mat = new SpriteMaterial({ map: map })
+    const sprite = new Sprite(mat)
+    sprite.scale.set(10, 10, 10)
+    console.log(sprite);
+    
+    return sprite
+  }
+
+  /**
+   * 添加飞机飞行线路
+   * @param radius 地球半径
+   * @param lon1 起点经度
+   * @param lat1 起点纬度
+   * @param lon2 终点经度
+   * @param lat2 终点纬度
+   */
+  createPlaneLine(radius: number, lon1: number, lat1: number, lon2: number, lat2: number) {
+    const v0 = lon2xyz(radius, lon1, lat1)
+    const v3 = lon2xyz(radius, lon2, lat2)
+    const getLenVcetor = (v1: Vector3, v2: Vector3, len: number): Vector3 => {
+      const v1v2Len = v1.distanceTo(v2);
+      return v1.lerp(v2, len / v1v2Len);
+    }
+    const getVCenter = (v1: Vector3, v2: Vector3): Vector3 => {
+      const v = v1.add(v2);
+      return v.divideScalar(2);
+    }
+
+    // 夹角
+    const angle = (v0.angleTo(v3) * 1.8) / Math.PI / 0.1; // 0 ~ Math.PI
+    const aLen = angle * 3 // 角度越大，曲线弧度越大
+    const hLen = angle * angle * 10;
+    const p0 = new Vector3(0, 0, 0);
+    // 法线向量
+    const rayLine = new Ray(p0, getVCenter(v0.clone(), v3.clone()));
+    // 顶点坐标
+    const vtop = rayLine.at(hLen / rayLine.at(1, new Vector3()).distanceTo(p0), new Vector3());
+    // 控制点坐标
+    const v1 = getLenVcetor(v0.clone(), vtop, aLen);
+    const v2 = getLenVcetor(v3.clone(), vtop, aLen);
+    // 绘制三维三次贝赛尔曲线
+    const planeCurve = new CubicBezierCurve3(v0, v1, v2, v3);
+    const geometry = new BufferGeometry();
+    const points = planeCurve.getPoints(50);
+
+    geometry.setFromPoints(points);
+    const matLine = new LineBasicMaterial({
+      color: 0x00ff00
+    });
+
+    const planeLine = new Line(geometry, matLine)
+
+    const sprite = this.createPlaneSprite()
+    this.earthGroup.add(sprite)
+
+    return { planeLine, planeCurve, sprite }
+  }
+
+  // 飞机移动函数
+  moveAirplane() {
+    for (let i = 0; i < this.spritesCollection.length; i++) {
+      const time = Date.now();
+      const t = (time % this.loopTime) / this.loopTime; // 计算当前时间进度百分比
+      const position = this.curveCollection[i].getPoint(t);
+
+      if (position?.x && this.spritesCollection[i]) {
+        this.changePosition(position, this.spritesCollection[i])
+      }
+    }
+  }
 
   createFlyLine() {
+
     this.flyLineArcGroup = new Group();
     this.flyLineArcGroup.userData['flyLineArray'] = []
     this.earthGroup.add(this.flyLineArcGroup)
@@ -518,12 +602,23 @@ export default class earth {
           this.options.flyLine
         );
 
+        const { planeLine, planeCurve, sprite } = this.createPlaneLine(
+          this.options.earth.radius,
+          cities.startArray.E,
+          cities.startArray.N,
+          item.E,
+          item.N
+        )
+
+        this.spritesCollection.push(sprite)
+        this.curveCollection.push(planeCurve)
+        this.flyLineArcGroup.add(planeLine);
+
         this.flyLineArcGroup.add(arcline); // 飞线插入flyArcGroup中
         this.flyLineArcGroup.userData['flyLineArray'].push(arcline.userData['flyLine'])
       });
 
     })
-
   }
 
   show() {
@@ -535,8 +630,22 @@ export default class earth {
       ease: "Quadratic",
     })
   }
+  changePosition(position, sprite) {
+    //模型的偏移量
+    const offsetAngle = Math.PI;
+    //创建一个4维矩阵
+    const mtx = new Matrix4();
+    mtx.lookAt(sprite.position.clone(), position, sprite.up);
+    mtx.multiply(new Matrix4().makeRotationFromEuler(new Euler(0, offsetAngle, 0)));
+    //计算出需要进行旋转的四元数值
+    const toRot = new Quaternion().setFromRotationMatrix(mtx);
+    //根据以上值调整角度
+    sprite.quaternion.slerp(toRot, 0.2);
+    sprite.position.set(position.x, position.y, position.z);
+  }
 
   render() {
+    this.moveAirplane()
 
     this.flyLineArcGroup?.userData['flyLineArray']?.forEach(fly => {
       fly.rotation.z += this.options.flyLine.speed; // 调节飞线速度
@@ -573,7 +682,6 @@ export default class earth {
         }
       });
     }
-
   }
 
 }
