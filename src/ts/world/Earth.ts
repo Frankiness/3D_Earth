@@ -398,7 +398,7 @@ export default class earth {
       cityArry.push(item.startArray);
       cityArry = cityArry.concat(...item.endArray);
       await Promise.all(cityArry.map(async e => {
-        const p = lon2xyz(this.options.earth.radius * 1.001, e.E, e.N);
+        const p = lon2xyz(e.E, e.N,this.options.earth.radius * 1.001);
         const div = `<div class="fire-div">${e.name}</div>`;
         const shareContent = document.getElementById("html2canvas");
         shareContent.innerHTML = div;
@@ -534,8 +534,8 @@ export default class earth {
    * @param lat2 终点纬度
    */
   createPlaneLine(radius: number, lon1: number, lat1: number, lon2: number, lat2: number) {
-    const v0 = lon2xyz(radius, lon1, lat1)
-    const v3 = lon2xyz(radius, lon2, lat2)
+    const v0 = lon2xyz(lon1, lat1,radius)
+    const v3 = lon2xyz(lon2, lat2,radius)
     const getLenVcetor = (v1: Vector3, v2: Vector3, len: number): Vector3 => {
       const v1v2Len = v1.distanceTo(v2);
       return v1.lerp(v2, len / v1v2Len);

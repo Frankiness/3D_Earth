@@ -78,10 +78,10 @@ function createFlyLine(radius, startAngle, endAngle,color) {
  * lon2,lat2：轨迹线结束点经纬度坐标
  */
 function flyArc(radius, lon1, lat1, lon2, lat2,options) {
-  const sphereCoord1 = lon2xyz(radius, lon1, lat1); //经纬度坐标转球面坐标
+  const sphereCoord1 = lon2xyz(lon1, lat1,radius); //经纬度坐标转球面坐标
   // startSphereCoord：轨迹线起点球面坐标
   const startSphereCoord = new Vector3(sphereCoord1.x, sphereCoord1.y, sphereCoord1.z);
-  const sphereCoord2 = lon2xyz(radius, lon2, lat2);
+  const sphereCoord2 = lon2xyz(lon2, lat2,radius);
   // startSphereCoord：轨迹线结束点球面坐标
   const endSphereCoord = new Vector3(sphereCoord2.x, sphereCoord2.y, sphereCoord2.z);
 

@@ -8,7 +8,7 @@ import { punctuation } from "../world/Earth";
  * @param {经度(角度值)} longitude 
  * @param {维度(角度值)} latitude
  */
-export const lon2xyz = (R:number, longitude:number, latitude:number): Vector3 => {
+export const lon2xyz = (longitude: number, latitude: number, R: number): Vector3 => {
   let lon = longitude * Math.PI / 180; // 转弧度值
   const lat = latitude * Math.PI / 180; // 转弧度值
   lon = -lon; // js坐标系z坐标轴对应经度-90度，而不是90度
@@ -35,7 +35,7 @@ export const createWaveMesh = (options: { radius, lon, lat, textures }) => {
   });
   const mesh = new Mesh(geometry, material);
   // 经纬度转球面坐标
-  const coord = lon2xyz(options.radius * 1.001, options.lon, options.lat);
+  const coord = lon2xyz(options.lon, options.lat, options.radius * 1.001);
   const size = options.radius * 0.12; //矩形平面Mesh的尺寸
   mesh.scale.set(size, size, size); //设置mesh大小
   mesh.userData['size'] = size; //自顶一个属性，表示mesh静态大小
@@ -68,7 +68,7 @@ export const createLightPillar = (options: { radius: number, lon: number, lat: n
   // 两个光柱交叉叠加
   group.add(mesh, mesh.clone().rotateZ(Math.PI / 2)); //几何体绕x轴旋转了，所以mesh旋转轴变为z
   // 经纬度转球面坐标
-  const SphereCoord = lon2xyz(options.radius, options.lon, options.lat); //SphereCoord球面坐标
+  const SphereCoord = lon2xyz(options.lon, options.lat, options.radius); //SphereCoord球面坐标
   group.position.set(SphereCoord.x, SphereCoord.y, SphereCoord.z); //设置mesh位置
   const coordVec3 = new Vector3(
     SphereCoord.x,
@@ -89,7 +89,7 @@ export const createPointMesh = (options: {
   const geometry = new PlaneBufferGeometry(1, 1); //默认在XOY平面上
   const mesh = new Mesh(geometry, options.material);
   // 经纬度转球面坐标
-  const coord = lon2xyz(options.radius * 1.001, options.lon, options.lat);
+  const coord = lon2xyz(options.lon, options.lat, options.radius * 1.001);
   const size = options.radius * 0.05; // 矩形平面Mesh的尺寸
   mesh.scale.set(size, size, size); // 设置mesh大小
 
