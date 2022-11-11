@@ -161,7 +161,7 @@ export default class earth {
 
       // this.createEarthGlow() // 创建地球辉光
       // this.createEarthAperture() // 创建地球的大气层
-      // await this.createMarkupPoint() // 创建柱状点位
+      await this.createMarkupPoint() // 创建柱状点位
       // await this.createSpriteLabel() // 创建标签
       // this.createAnimateCircle() // 创建环绕卫星
       this.createFlyLine() // 创建飞线
@@ -211,6 +211,10 @@ export default class earth {
     this.earthGroup.add(this.earth);
 
   }
+
+  // createPointEarth(){
+    
+  // }
 
 
   createStars() {
@@ -577,15 +581,14 @@ export default class earth {
       const time = Date.now();
       const t = (time % this.loopTime) / this.loopTime; // 计算当前时间进度百分比
       const position = this.curveCollection[i].getPoint(t);
-
-      if (position?.x && this.spritesCollection[i]) {
-        this.changePosition(position, this.spritesCollection[i])
+      const sprite = this.spritesCollection[i]
+      if (position?.x && sprite) {
+        this.handlePlanePosition(position, sprite)
       }
     }
   }
 
   createFlyLine() {
-
     this.flyLineArcGroup = new Group();
     this.flyLineArcGroup.userData['flyLineArray'] = []
     this.earthGroup.add(this.flyLineArcGroup)
@@ -610,8 +613,8 @@ export default class earth {
           item.N
         )
 
-        this.spritesCollection.push(sprite)
-        this.curveCollection.push(planeCurve)
+        this.spritesCollection.push(sprite) //添加sprite
+        this.curveCollection.push(planeCurve) //添加curve
         this.flyLineArcGroup.add(planeLine);
 
         this.flyLineArcGroup.add(arcline); // 飞线插入flyArcGroup中
@@ -630,7 +633,12 @@ export default class earth {
       ease: "Quadratic",
     })
   }
-  changePosition(position, sprite) {
+  /**
+   * 实时更新飞机位置
+   * @param position xyz位置
+   * @param sprite 精灵图对象
+   */
+  handlePlanePosition(position:Vector3, sprite:Sprite) {
     //模型的偏移量
     const offsetAngle = Math.PI;
     //创建一个4维矩阵
