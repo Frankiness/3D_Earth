@@ -20,7 +20,6 @@ import Data from './Data'
 
 import { lon2xyz } from '../Utils/common'
 import { ShapeUtils } from '../Utils/ShapeUtils'
-import { debug } from "webpack";
 
 type earthConfig = {
   radius: number,
@@ -83,11 +82,6 @@ const mat2 = new MeshBasicMaterial({
   // wireframe: true
 });
 
-const lineMat = new LineBasicMaterial({
-  color: "#1E90FF",
-  linewidth: 1,
-});
-
 export default class World {
   public basic: Basic;
   public scene: Scene;
@@ -127,7 +121,7 @@ export default class World {
     this.earthConfig = {
       radius: 50,
       rotateSpeed: 0.002,
-      isRotation: true
+      isRotation: false
     }
     this.lines = []
     this.geometry = new BufferGeometry();
@@ -166,7 +160,6 @@ export default class World {
       loader.load('json/world2.json', (data: string) => {
         const jsonData: IGeojson = JSON.parse(data);
         this.loadGeojson(jsonData);
-        debugger
       })
       this.earth.earthGroup.add(this.points)
       // 开始渲染
@@ -250,7 +243,7 @@ export default class World {
     this.maxLng = coor.maxLng;
     this.maxLat = coor.maxLat;
 
-    mapJson.features.forEach((feature, index) => {
+    mapJson.features.forEach((feature) => {
       if (!feature.geometry) return;
       const coordinates = feature.geometry.coordinates;
       switch (feature.geometry.type) {
@@ -261,7 +254,7 @@ export default class World {
               shapeVertices = [];
             for (const point of points) {
               const position = lon2xyz(point[0], point[1], 55);
-              
+
               linePositions.push(position.x);
               linePositions.push(position.y);
               linePositions.push(position.z);
@@ -271,11 +264,6 @@ export default class World {
               );
             }
 
-            const topLine = new Line(
-              new BufferGeometry().setFromPoints(linePositions),
-              lineMat
-            )
-            this.mainMapGroup.add(topLine)
             this.mainMapGroup.add(
               new Mesh(this.edgeFence(_points, 0.9, 1), mat)
             );
@@ -283,9 +271,6 @@ export default class World {
             this.mainMapGroup.add(
               new Mesh(this.customPlaneGeometry(shapeVertices), mat)
             );
-            console.log(this.customPlaneGeometry(shapeVertices));
-            
-            debugger
           }
 
           break;
@@ -300,17 +285,13 @@ export default class World {
                 linePositions.push(position.x);
                 linePositions.push(position.y);
                 linePositions.push(position.z);
-                
+
                 _points.push([position.x, position.y, position.z]);
                 shapeVertices.push(
                   new Vector3(position.x, position.y, position.z)
                 );
               }
-              const topLine = new Mesh(
-                new BufferGeometry().setFromPoints(linePositions),
-                lineMat
-              );
-              this.mainMapGroup.add(topLine)
+
               this.mainMapGroup.add(
                 new Mesh(this.edgeFence(_points, 0.9, 1), mat)
               );
@@ -326,7 +307,6 @@ export default class World {
           break;
       }
     });
-    debugger
   }
   getGeoExtent(features) {
     // 计算数据的最大最小经纬度、最大最小墨卡托坐标以及墨卡托坐标的的多变形数组
@@ -334,7 +314,7 @@ export default class World {
       maxLng = -180,
       minLat = 90,
       maxLat = -90;
-    
+
     for (const feature of features) {
       if (feature.geometry) {
         if (feature.geometry.type === "Polygon") {
@@ -367,10 +347,10 @@ export default class World {
     const indices = []; // 索引数组
     const uv = [];
     let index = 0;
-    
+
     for (let i = 0; i < points.length - 1; i++) {
       const position = points[i];
-      
+
       vertices.push(position[0] * scaleOut);
       vertices.push(position[1] * scaleOut);
       vertices.push(position[2] * scaleOut);
@@ -414,7 +394,7 @@ export default class World {
       "position",
       new Float32BufferAttribute(vertices, 3)
     );
-      
+
     geometry.setAttribute("uv", new Float32BufferAttribute(uv, 2));
     return geometry;
   }
@@ -431,15 +411,15 @@ export default class World {
     const vertices = [];
     // const normals = [];
     // const uvs = [];
-   
+
     for (let i = 0, l = shapeVertices.length; i < l; i++) {
       const vertex = shapeVertices[i];
-      
+
       vertices.push(vertex.x, vertex.y, vertex.z);
       // normals.push( 0, 0, 1 );
       // uvs.push( vertex.x, vertex.y ); // world uvs
     }
-    
+
     const faces = ShapeUtils.triangulateShape(shapeVertices, []);
     for (let i = 0, l = faces.length; i < l; i++) {
       const face = faces[i];
@@ -448,7 +428,7 @@ export default class World {
       const c = face[2];
       indices.push(a, b, c);
     }
-    
+
 
     geometry.setIndex(indices);
     geometry.setAttribute(
