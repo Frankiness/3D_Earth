@@ -1,6 +1,6 @@
 import {
   BufferAttribute, BufferGeometry, Color, DoubleSide, Group, Material, Mesh, MeshBasicMaterial, NormalBlending,
-  Object3D, Matrix4, Quaternion, Euler, Line, LineBasicMaterial,
+  Object3D, Matrix4, Quaternion, Euler, Line, LineBasicMaterial, FileLoader,
   Points, PointsMaterial, Ray, ShaderMaterial, CubicBezierCurve3,
   SphereBufferGeometry, Sprite, SpriteMaterial, Texture, TextureLoader, Vector3
 } from "three";
@@ -12,6 +12,8 @@ import earthFragment from '../../shaders/earth/fragment.fs';
 import { createAnimateLine, createLightPillar, createPointMesh, createWaveMesh, getCirclePoints, lon2xyz } from "../Utils/common";
 import gsap from "gsap";
 import { flyArc } from "../Utils/arc";
+import { IGeojson } from "../interfaces/IGeojson";
+import { WorldShape } from './WorldShape'
 
 
 export type punctuation = {
@@ -157,13 +159,14 @@ export default class earth {
     return new Promise(async (resolve) => {
 
       this.createEarth(); // 创建地球
-      // this.createStars(); // 添加星星
+      this.createStars(); // 添加星星
+      this.createLandShape() //添加陆地形状
 
-      // this.createEarthGlow() // 创建地球辉光
-      // this.createEarthAperture() // 创建地球的大气层
+      this.createEarthGlow() // 创建地球辉光
+      this.createEarthAperture() // 创建地球的大气层
       await this.createMarkupPoint() // 创建柱状点位
-      // await this.createSpriteLabel() // 创建标签
-      // this.createAnimateCircle() // 创建环绕卫星
+      await this.createSpriteLabel() // 创建标签
+      this.createAnimateCircle() // 创建环绕卫星
       this.createFlyLine() // 创建飞线
 
       this.show()
@@ -172,32 +175,31 @@ export default class earth {
   }
 
   createEarth() {
+    this.uniforms.map.value = this.options.textures.earth;
+
+    //地球外层遮罩
+    // const earth_border = new SphereBufferGeometry(
+    //   this.options.earth.radius + 10,
+    //   60,
+    //   60
+    // );
+
+    // const pointMaterial = new PointsMaterial({
+    //   color: 0x81ffff, //设置颜色，默认 0xFFFFFF
+    //   transparent: true,
+    //   sizeAttenuation: true,
+    //   opacity: 0.1,
+    //   vertexColors: false, //定义材料是否使用顶点颜色，默认false ---如果该选项设置为true，则color属性失效
+    //   size: 0.01, //定义粒子的大小。默认为1.0
+    // })
+    // const points = new Points(earth_border, pointMaterial);
+    // this.earthGroup.add(points);
+
     const earth_geometry = new SphereBufferGeometry(
       this.options.earth.radius,
       50,
       50
     );
-
-    const earth_border = new SphereBufferGeometry(
-      this.options.earth.radius + 10,
-      60,
-      60
-    );
-
-    const pointMaterial = new PointsMaterial({
-      color: 0x81ffff, //设置颜色，默认 0xFFFFFF
-      transparent: true,
-      sizeAttenuation: true,
-      opacity: 0.1,
-      vertexColors: false, //定义材料是否使用顶点颜色，默认false ---如果该选项设置为true，则color属性失效
-      size: 0.01, //定义粒子的大小。默认为1.0
-    })
-    const points = new Points(earth_border, pointMaterial); //将模型添加到场景
-
-    this.earthGroup.add(points); //地球外层遮罩
-
-    this.uniforms.map.value = this.options.textures.earth;
-
     const earth_material = new ShaderMaterial({
       // wireframe: true, // 显示模型线条
       uniforms: this.uniforms,
@@ -211,10 +213,6 @@ export default class earth {
     this.earthGroup.add(this.earth);
 
   }
-
-  // createPointEarth(){
-    
-  // }
 
 
   createStars() {
@@ -398,7 +396,7 @@ export default class earth {
       cityArry.push(item.startArray);
       cityArry = cityArry.concat(...item.endArray);
       await Promise.all(cityArry.map(async e => {
-        const p = lon2xyz(e.E, e.N,this.options.earth.radius * 1.001);
+        const p = lon2xyz(e.E, e.N, this.options.earth.radius * 1.001);
         const div = `<div class="fire-div">${e.name}</div>`;
         const shareContent = document.getElementById("html2canvas");
         shareContent.innerHTML = div;
@@ -520,8 +518,7 @@ export default class earth {
     const mat = new SpriteMaterial({ map: map })
     const sprite = new Sprite(mat)
     sprite.scale.set(10, 10, 10)
-    console.log(sprite);
-    
+
     return sprite
   }
 
@@ -534,8 +531,8 @@ export default class earth {
    * @param lat2 终点纬度
    */
   createPlaneLine(radius: number, lon1: number, lat1: number, lon2: number, lat2: number) {
-    const v0 = lon2xyz(lon1, lat1,radius)
-    const v3 = lon2xyz(lon2, lat2,radius)
+    const v0 = lon2xyz(lon1, lat1, radius)
+    const v3 = lon2xyz(lon2, lat2, radius)
     const getLenVcetor = (v1: Vector3, v2: Vector3, len: number): Vector3 => {
       const v1v2Len = v1.distanceTo(v2);
       return v1.lerp(v2, len / v1v2Len);
@@ -624,6 +621,23 @@ export default class earth {
     })
   }
 
+  /**
+   * 根据Geojson创建陆地形状
+   */
+  createLandShape() {
+    // 读取geojson
+    const loader = new FileLoader();
+    loader.load('json/world2.json', (data: string) => {
+      const jsonData: IGeojson = JSON.parse(data);
+
+      // 添加世界地图几何体
+      const shape = new WorldShape()
+      const worldGeometry = shape.loadGeojson(jsonData)
+
+      this.earthGroup.add(worldGeometry)
+    })
+  }
+
   show() {
     gsap.to(this.group.scale, {
       x: 1,
@@ -638,7 +652,7 @@ export default class earth {
    * @param position xyz位置
    * @param sprite 精灵图对象
    */
-  handlePlanePosition(position:Vector3, sprite:Sprite) {
+  handlePlanePosition(position: Vector3, sprite: Sprite) {
     //模型的偏移量
     const offsetAngle = Math.PI;
     //创建一个4维矩阵

@@ -1,6 +1,6 @@
 import {
   MeshBasicMaterial, PerspectiveCamera, BufferGeometry, Vector3, LineBasicMaterial, Color, Points,
-  Scene, ShaderMaterial, WebGLRenderer, DoubleSide, Line, Group, Mesh, FileLoader, Float32BufferAttribute
+  Scene, ShaderMaterial, WebGLRenderer, Line,
 } from "three";
 import {
   OrbitControls
@@ -8,7 +8,7 @@ import {
 
 // interfaces
 import { IWord } from '../interfaces/IWorld'
-import { IGeojson } from "../interfaces/IGeojson";
+
 
 import { Basic } from './Basic'
 import Sizes from '../Utils/Sizes'
@@ -19,7 +19,6 @@ import Earth from './Earth'
 import Data from './Data'
 
 import { lon2xyz } from '../Utils/common'
-import { ShapeUtils } from '../Utils/ShapeUtils'
 
 type earthConfig = {
   radius: number,
@@ -64,24 +63,6 @@ const fragmentShader = `
   }
   `;
 
-
-const mat = new MeshBasicMaterial({
-  transparent: true,
-  opacity: 0.7,
-  color: "#87CEFA",
-  side: DoubleSide, // FrontSide BackSide DoubleSide
-  // depthWrite: false,
-  // wireframe: true
-});
-const mat2 = new MeshBasicMaterial({
-  transparent: true,
-  opacity: 1.0,
-  color: "#1E90FF",
-  side: DoubleSide, // FrontSide BackSide DoubleSide
-  // depthWrite: false,
-  // wireframe: true
-});
-
 export default class World {
   public basic: Basic;
   public scene: Scene;
@@ -99,11 +80,6 @@ export default class World {
   public params: Params
   public points: Points
   public opacitys: Float32Array
-  public minLng = null
-  public minLat = null
-  public maxLng = null
-  public maxLat = null
-  public mainMapGroup = new Group();
 
   constructor(option: IWord) {
     /**
@@ -155,18 +131,10 @@ export default class World {
     this.resources = new Resources(async () => {
       await this.createEarth()
 
-      // 读取geojson
-      const loader = new FileLoader();
-      loader.load('json/world2.json', (data: string) => {
-        const jsonData: IGeojson = JSON.parse(data);
-        this.loadGeojson(jsonData);
-      })
       this.earth.earthGroup.add(this.points)
       // 开始渲染
       this.render()
     })
-
-    this.scene.add(this.mainMapGroup)
   }
 
 
@@ -230,217 +198,6 @@ export default class World {
       color: color,
     });
     return new Line(lineGeometry, lineMaterial);
-  }
-
-
-  /**
- * 绘制地图几何体
- */
-  loadGeojson(mapJson: IGeojson) {
-    const coor = this.getGeoExtent(mapJson.features);
-    this.minLng = coor.minLng;
-    this.minLat = coor.minLat;
-    this.maxLng = coor.maxLng;
-    this.maxLat = coor.maxLat;
-
-    mapJson.features.forEach((feature) => {
-      if (!feature.geometry) return;
-      const coordinates = feature.geometry.coordinates;
-      switch (feature.geometry.type) {
-        case "Polygon":
-          for (const points of coordinates) {
-            const linePositions = [],
-              _points = [],
-              shapeVertices = [];
-            for (const point of points) {
-              const position = lon2xyz(point[0], point[1], 55);
-
-              linePositions.push(position.x);
-              linePositions.push(position.y);
-              linePositions.push(position.z);
-              _points.push([position.x, position.y, position.z]);
-              shapeVertices.push(
-                new Vector3(position.x, position.y, position.z)
-              );
-            }
-
-            this.mainMapGroup.add(
-              new Mesh(this.edgeFence(_points, 0.9, 1), mat)
-            );
-            this.mainMapGroup.add(new Mesh(this.edgeFence(_points, 1, 1.02), mat2))
-            this.mainMapGroup.add(
-              new Mesh(this.customPlaneGeometry(shapeVertices), mat)
-            );
-          }
-
-          break;
-        case "MultiPolygon":
-          for (const coordinate of coordinates) {
-            for (const points of coordinate) {
-              const linePositions = [],
-                _points = [],
-                shapeVertices = [];
-              for (const point of points) {
-                const position = lon2xyz(point[0], point[1], 55);
-                linePositions.push(position.x);
-                linePositions.push(position.y);
-                linePositions.push(position.z);
-
-                _points.push([position.x, position.y, position.z]);
-                shapeVertices.push(
-                  new Vector3(position.x, position.y, position.z)
-                );
-              }
-
-              this.mainMapGroup.add(
-                new Mesh(this.edgeFence(_points, 0.9, 1), mat)
-              );
-              this.mainMapGroup.add(new Mesh(this.edgeFence(_points, 1, 1.02), mat2))
-              this.mainMapGroup.add(
-                new Mesh(this.customPlaneGeometry(shapeVertices), mat)
-              );
-            }
-          }
-
-          break;
-        default:
-          break;
-      }
-    });
-  }
-  getGeoExtent(features) {
-    // 计算数据的最大最小经纬度、最大最小墨卡托坐标以及墨卡托坐标的的多变形数组
-    let minLng = 180,
-      maxLng = -180,
-      minLat = 90,
-      maxLat = -90;
-
-    for (const feature of features) {
-      if (feature.geometry) {
-        if (feature.geometry.type === "Polygon") {
-          for (const points of feature.geometry.coordinates) {
-            for (const point of points) {
-              minLng = minLng < point[0] ? minLng : point[0];
-              maxLng = maxLng > point[0] ? maxLng : point[0];
-              minLat = minLat < point[1] ? minLat : point[1];
-              maxLat = maxLat > point[1] ? maxLat : point[1];
-            }
-          }
-        } else if (feature.geometry.type === "MultiPolygon") {
-          for (const polygonPoints of feature.geometry.coordinates) {
-            for (const points of polygonPoints) {
-              for (const point of points) {
-                minLng = minLng < point[0] ? minLng : point[0];
-                maxLng = maxLng > point[0] ? maxLng : point[0];
-                minLat = minLat < point[1] ? minLat : point[1];
-                maxLat = maxLat > point[1] ? maxLat : point[1];
-              }
-            }
-          }
-        }
-      }
-    }
-    return { minLng, minLat, maxLng, maxLat };
-  }
-  edgeFence(points, scaleIn, scaleOut) {
-    const vertices = []; // 顶点数组
-    const indices = []; // 索引数组
-    const uv = [];
-    let index = 0;
-
-    for (let i = 0; i < points.length - 1; i++) {
-      const position = points[i];
-
-      vertices.push(position[0] * scaleOut);
-      vertices.push(position[1] * scaleOut);
-      vertices.push(position[2] * scaleOut);
-      indices.push(index);
-      indices.push(index + 1);
-      indices.push(index + 2);
-      uv.push(0);
-      uv.push(0);
-      index++;
-
-      vertices.push(position[0] * scaleIn);
-      vertices.push(position[1] * scaleIn);
-      vertices.push(position[2] * scaleIn);
-      indices.push(index + 2);
-      indices.push(index + 1);
-      indices.push(index);
-      uv.push(0);
-      uv.push(1);
-      index++;
-    }
-
-    const position = points[points.length - 1];
-
-    vertices.push(position[0] * scaleOut);
-    vertices.push(position[1] * scaleOut);
-    vertices.push(position[2] * scaleOut);
-    uv.push(0);
-    uv.push(0);
-
-    vertices.push(position[0] * scaleIn);
-    vertices.push(position[1] * scaleIn);
-    vertices.push(position[2] * scaleIn);
-
-
-    uv.push(0);
-    uv.push(1);
-
-    const geometry = new BufferGeometry();
-    geometry.setIndex(indices);
-    geometry.setAttribute(
-      "position",
-      new Float32BufferAttribute(vertices, 3)
-    );
-
-    geometry.setAttribute("uv", new Float32BufferAttribute(uv, 2));
-    return geometry;
-  }
-
-  /**
-   * 定义几何体表面材质
-   * @param shapeVertices 
-   * @returns 
-   */
-  customPlaneGeometry(shapeVertices) {
-    const geometry = new BufferGeometry();
-
-    const indices = [];
-    const vertices = [];
-    // const normals = [];
-    // const uvs = [];
-
-    for (let i = 0, l = shapeVertices.length; i < l; i++) {
-      const vertex = shapeVertices[i];
-
-      vertices.push(vertex.x, vertex.y, vertex.z);
-      // normals.push( 0, 0, 1 );
-      // uvs.push( vertex.x, vertex.y ); // world uvs
-    }
-
-    const faces = ShapeUtils.triangulateShape(shapeVertices, []);
-    for (let i = 0, l = faces.length; i < l; i++) {
-      const face = faces[i];
-      const a = face[0];
-      const b = face[1];
-      const c = face[2];
-      indices.push(a, b, c);
-    }
-
-
-    geometry.setIndex(indices);
-    geometry.setAttribute(
-      "position",
-      new Float32BufferAttribute(vertices, 3)
-    );
-
-
-    // geometry.setAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ) );
-    // geometry.setAttribute( 'uv', new THREE.Float32BufferAttribute( uvs, 2 ) );
-
-    return geometry;
   }
 
   lineFlow() {
