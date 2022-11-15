@@ -97,7 +97,7 @@ export default class World {
     this.earthConfig = {
       radius: 50,
       rotateSpeed: 0.002,
-      isRotation: false
+      isRotation: true // 是否自转
     }
     this.lines = []
     this.geometry = new BufferGeometry();
