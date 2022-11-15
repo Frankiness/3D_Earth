@@ -590,33 +590,36 @@ export default class earth {
     this.flyLineArcGroup.userData['flyLineArray'] = []
     this.earthGroup.add(this.flyLineArcGroup)
 
-    this.options.data.forEach((cities) => {
-      cities.endArray.forEach(item => {
-        // 调用函数flyArc绘制球面上任意两点之间飞线圆弧轨迹
-        const arcline = flyArc(
-          this.options.earth.radius,
-          cities.startArray.E,
-          cities.startArray.N,
-          item.E,
-          item.N,
-          this.options.flyLine
-        );
+    this.options.data.forEach((cities, index) => {
+      if (index % 2 === 0) {
+        cities.endArray.forEach(item => {
+          // 调用函数flyArc绘制球面上任意两点之间飞线圆弧轨迹
+          const arcline = flyArc(
+            this.options.earth.radius,
+            cities.startArray.E,
+            cities.startArray.N,
+            item.E,
+            item.N,
+            this.options.flyLine
+          );
 
-        const { planeLine, planeCurve, sprite } = this.createPlaneLine(
-          this.options.earth.radius,
-          cities.startArray.E,
-          cities.startArray.N,
-          item.E,
-          item.N
-        )
+          const { planeLine, planeCurve, sprite } = this.createPlaneLine(
+            this.options.earth.radius,
+            cities.startArray.E,
+            cities.startArray.N,
+            item.E,
+            item.N
+          )
 
-        this.spritesCollection.push(sprite) //添加sprite
-        this.curveCollection.push(planeCurve) //添加curve
-        this.flyLineArcGroup.add(planeLine);
+          this.spritesCollection.push(sprite) //添加sprite
+          this.curveCollection.push(planeCurve) //添加curve
+          this.flyLineArcGroup.add(planeLine);
 
-        this.flyLineArcGroup.add(arcline); // 飞线插入flyArcGroup中
-        this.flyLineArcGroup.userData['flyLineArray'].push(arcline.userData['flyLine'])
-      });
+          this.flyLineArcGroup.add(arcline); // 飞线插入flyArcGroup中
+          this.flyLineArcGroup.userData['flyLineArray'].push(arcline.userData['flyLine'])
+        });
+      }
+
 
     })
   }

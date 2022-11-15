@@ -1,16 +1,18 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { ArcCurve, BufferAttribute, BufferGeometry,
-Color, Line, LineBasicMaterial, Points, PointsMaterial, 
-Quaternion, Vector3 } from 'three';
+import {
+  ArcCurve, BufferAttribute, BufferGeometry,
+  Color, Line, LineBasicMaterial, Points, PointsMaterial,
+  Quaternion, Vector3
+} from 'three';
 import { lon2xyz } from './common';
 
 /*
  * 绘制一条圆弧飞线
  * 5个参数含义：( 飞线圆弧轨迹半径, 开始角度, 结束角度)
  */
-function createFlyLine(radius, startAngle, endAngle,color) {
+function createFlyLine(radius, startAngle, endAngle, color) {
   const geometry = new BufferGeometry(); //声明一个几何体对象BufferGeometry
   //  ArcCurve创建圆弧曲线
   const arc = new ArcCurve(0, 0, radius, startAngle, endAngle, false);
@@ -77,18 +79,18 @@ function createFlyLine(radius, startAngle, endAngle,color) {
  * lon1,lat1:轨迹线起点经纬度坐标
  * lon2,lat2：轨迹线结束点经纬度坐标
  */
-function flyArc(radius, lon1, lat1, lon2, lat2,options) {
-  const sphereCoord1 = lon2xyz(lon1, lat1,radius); //经纬度坐标转球面坐标
+function flyArc(radius, lon1, lat1, lon2, lat2, options) {
+  const sphereCoord1 = lon2xyz(lon1, lat1, radius); //经纬度坐标转球面坐标
   // startSphereCoord：轨迹线起点球面坐标
   const startSphereCoord = new Vector3(sphereCoord1.x, sphereCoord1.y, sphereCoord1.z);
-  const sphereCoord2 = lon2xyz(lon2, lat2,radius);
+  const sphereCoord2 = lon2xyz(lon2, lat2, radius);
   // startSphereCoord：轨迹线结束点球面坐标
   const endSphereCoord = new Vector3(sphereCoord2.x, sphereCoord2.y, sphereCoord2.z);
 
   //计算绘制圆弧需要的关于y轴对称的起点、结束点和旋转四元数
   const startEndQua = _3Dto2D(startSphereCoord, endSphereCoord)
   // 调用arcXOY函数绘制一条圆弧飞线轨迹
-  const arcline = arcXOY(radius, startEndQua.startPoint, startEndQua.endPoint,options);
+  const arcline = arcXOY(radius, startEndQua.startPoint, startEndQua.endPoint, options);
   arcline.quaternion.multiply(startEndQua.quaternion)
   return arcline;
 }
@@ -142,7 +144,7 @@ function _3Dto2D(startSphere, endSphere) {
 /**通过函数arcXOY()可以在XOY平面上绘制一个关于y轴对称的圆弧曲线
  * startPoint, endPoint：表示圆弧曲线的起点和结束点坐标值，起点和结束点关于y轴对称
  * 同时在圆弧轨迹的基础上绘制一段飞线*/
-function arcXOY(radius,startPoint, endPoint,options) {
+function arcXOY(radius, startPoint, endPoint, options) {
   // 计算两点的中点
   const middleV3 = new Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
   // 弦垂线的方向dir(弦的中点和圆心构成的向量)
@@ -200,7 +202,7 @@ function radianAOB(A, B, O) {
 }
 /*绘制一条圆弧曲线模型Line
 5个参数含义：(圆心横坐标, 圆心纵坐标, 飞线圆弧轨迹半径, 开始角度, 结束角度)*/
-function circleLine(x, y, r, startAngle, endAngle,color) {
+function circleLine(x, y, r, startAngle, endAngle, color) {
   const geometry = new BufferGeometry(); //声明一个几何体对象Geometry
   //  ArcCurve创建圆弧曲线
   const arc = new ArcCurve(x, y, r, startAngle, endAngle, false);
@@ -208,7 +210,7 @@ function circleLine(x, y, r, startAngle, endAngle,color) {
   const points = arc.getSpacedPoints(80); //分段数50，返回51个顶点
   geometry.setFromPoints(points); // setFromPoints方法从points中提取数据改变几何体的顶点属性vertices
   const material = new LineBasicMaterial({
-    color:color || 0xd18547,
+    color: color || 0xd18547,
   }); //线条材质
   const line = new Line(geometry, material); //线条模型对象
   return line;
